@@ -1,0 +1,70 @@
+model:
+  vocab_size: 50000
+  d_model: 1024
+  n_heads: 16
+  n_layers: 24
+  d_ff: 4096
+  max_seq_len: 512
+  dropout: 0.1
+  pos_encoding_type: "sinusoidal"
+  layer_norm_eps: 1e-6
+  init_std: 0.02
+
+training:
+  batch_size: 8
+  learning_rate: 1e-5
+  warmup_steps: 16000
+  max_epochs: 300
+  gradient_clip_val: 1.0
+  optimizer: "adamw"
+  weight_decay: 0.01
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1e-8
+  lr_scheduler: "cosine"
+  lr_decay_steps: null
+  lr_decay_rate: 0.1
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+  log_every_n_steps: 100
+  save_every_n_epochs: 5
+  eval_every_n_epochs: 1
+  max_checkpoints: 5
+  use_amp: true
+  amp_dtype: "float16"
+  use_ddp: false
+  ddp_backend: "nccl"
+
+data:
+  train_data_path: "data/train"
+  val_data_path: "data/val"
+  test_data_path: null
+  src_data_path: null
+  tgt_data_path: null
+  tokenizer_type: "bpe"
+  vocab_size: 50000
+  min_freq: 2
+  lowercase: true
+  remove_punctuation: false
+  max_length: 512
+  truncation: true
+  padding: true
+  pad_token: "<pad>"
+  unk_token: "<unk>"
+  bos_token: "<s>"
+  eos_token: "</s>"
+  batch_size: 8
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+  use_augmentation: false
+  augmentation_prob: 0.1
+
+experiment_name: "transformer_large"
+project_name: "hibiscus_transformer"
+log_dir: "logs"
+checkpoint_dir: "checkpoints"
+use_wandb: false
+use_tensorboard: true
+seed: 42 
