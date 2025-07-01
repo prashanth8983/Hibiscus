@@ -1,3 +1,21 @@
+```
+    ╭─────────────────────────────────────────────────────────────╮
+    │                                                             │
+    │     🌺  ╭─────────────────────────────────────────────╮  🌺  │
+    │         │                                             │      │
+    │    🌺   │              HIBISCUS                      │   🌺 │
+    │         │                                             │      │
+    │  🌺     │  A comprehensive, production-ready         │     🌺│
+    │         │  implementation of the Transformer         │      │
+    │ 🌺      │  architecture with modern best practices,  │      🌺│
+    │         │  extensive testing, and professional       │      │
+    │🌺       │  tooling.                                  │       🌺│
+    │         │                                             │      │
+    │     🌺  ╰─────────────────────────────────────────────╯  🌺  │
+    │                                                             │
+    ╰─────────────────────────────────────────────────────────────╯
+```
+
 # Hibiscus
 
 A comprehensive, production-ready implementation of the Transformer architecture with modern best practices, extensive testing, and professional tooling.
@@ -421,7 +439,3 @@ This implementation is inspired by:
 - "Attention Is All You Need" (Vaswani et al., 2017)
 - Modern transformer implementations (Hugging Face, PyTorch)
 - Best practices from the deep learning community
-
----
-
-**This transformer implementation provides a production-ready foundation for natural language processing tasks with comprehensive tooling, extensive testing, and professional development practices.** 
