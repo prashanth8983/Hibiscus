@@ -1,4 +1,4 @@
-# Professional Production-Grade Transformer
+# Hibiscus
 
 A comprehensive, production-ready implementation of the Transformer architecture with modern best practices, extensive testing, and professional tooling.
 
@@ -421,13 +421,6 @@ This implementation is inspired by:
 - "Attention Is All You Need" (Vaswani et al., 2017)
 - Modern transformer implementations (Hugging Face, PyTorch)
 - Best practices from the deep learning community
-
-## 📞 Support
-
-For questions, issues, or contributions:
-- Open an issue on GitHub
-- Check the documentation
-- Review the examples
 
 ---
 
