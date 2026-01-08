@@ -151,6 +151,59 @@ class TextDataset(Dataset):
         }
 
 
+class HuggingFaceTextDataset(Dataset):
+    """
+    Dataset for text data loaded from Hugging Face datasets.
+    """
+    def __init__(self, hf_dataset, config: DataConfig, tokenizer: Tokenizer):
+        self.hf_dataset = hf_dataset
+        self.config = config
+        self.tokenizer = tokenizer
+        self.tokenized_texts = self._tokenize_hf_dataset()
+        self.pairs = self._create_pairs()
+
+    def _tokenize_hf_dataset(self) -> List[List[int]]:
+        tokenized = []
+        for example in self.hf_dataset:
+            text = example["text"]
+            if self.config.lowercase:
+                text = text.lower()
+            if self.config.remove_punctuation:
+                import re
+                text = re.sub(r'[^\w\s]', '', text)
+            
+            tokens = self.tokenizer.encode(text, add_special_tokens=True)
+            if len(tokens) <= self.config.max_length:
+                tokenized.append(tokens)
+        return tokenized
+
+    def _create_pairs(self) -> List[Tuple[List[int], List[int]]]:
+        pairs = []
+        for tokens in self.tokenized_texts:
+            if len(tokens) < 2:
+                continue
+            for i in range(1, len(tokens)):
+                input_seq = tokens[:i]
+                target_seq = tokens[1:i+1]
+                if len(input_seq) > self.config.max_length - 1:
+                    input_seq = input_seq[-(self.config.max_length - 1):]
+                    target_seq = target_seq[-(self.config.max_length - 1):]
+                pairs.append((input_seq, target_seq))
+        return pairs
+
+    def __len__(self) -> int:
+        return len(self.pairs)
+
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        input_seq, target_seq = self.pairs[idx]
+        return {
+            'input_ids': torch.tensor(input_seq, dtype=torch.long),
+            'target_ids': torch.tensor(target_seq, dtype=torch.long),
+            'input_length': len(input_seq),
+            'target_length': len(target_seq)
+        }
+
+
 class TranslationDataset(Dataset):
     """
     Dataset for machine translation tasks.
@@ -341,7 +394,8 @@ def translation_collate_fn(batch: List[Dict[str, torch.Tensor]],
 
 def create_data_loaders(config: DataConfig, tokenizer: Optional[Tokenizer] = None,
                        src_tokenizer: Optional[Tokenizer] = None,
-                       tgt_tokenizer: Optional[Tokenizer] = None) -> Tuple[DataLoader, DataLoader, Optional[DataLoader]]:
+                       tgt_tokenizer: Optional[Tokenizer] = None,
+                       hf_dataset: Optional[Dataset] = None) -> Tuple[DataLoader, DataLoader, Optional[DataLoader]]:
     """
     Create data loaders for training, validation, and testing.
     
@@ -350,12 +404,13 @@ def create_data_loaders(config: DataConfig, tokenizer: Optional[Tokenizer] = Non
         tokenizer: Tokenizer for single-language tasks
         src_tokenizer: Source language tokenizer for translation
         tgt_tokenizer: Target language tokenizer for translation
+        hf_dataset: Optional Hugging Face dataset object
         
     Returns:
         Tuple of (train_loader, val_loader, test_loader)
     """
     # Determine if this is a translation task
-    is_translation = hasattr(config, 'src_data_path') and hasattr(config, 'tgt_data_path')
+    is_translation = config.src_data_path is not None and config.tgt_data_path is not None
     
     if is_translation:
         # Translation task
@@ -382,8 +437,27 @@ def create_data_loaders(config: DataConfig, tokenizer: Optional[Tokenizer] = Non
         collate_fn_to_use = translation_collate_fn
         pad_token_id = src_tokenizer.pad_token_id if src_tokenizer else 0
         
+    elif hf_dataset is not None:
+        # Hugging Face dataset
+        train_dataset = HuggingFaceTextDataset(
+            hf_dataset["train"], config, tokenizer
+        )
+        
+        val_dataset = HuggingFaceTextDataset(
+            hf_dataset["validation"], config, tokenizer
+        )
+        
+        test_dataset = None
+        if "test" in hf_dataset:
+            test_dataset = HuggingFaceTextDataset(
+                hf_dataset["test"], config, tokenizer
+            )
+        
+        collate_fn_to_use = collate_fn
+        pad_token_id = tokenizer.pad_token_id if tokenizer else 0
+        
     else:
-        # Single language task
+        # Single language task from local files
         train_dataset = TextDataset(
             config.train_data_path, config, tokenizer, "train"
         )

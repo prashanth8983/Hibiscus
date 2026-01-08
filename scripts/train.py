@@ -10,6 +10,8 @@ import argparse
 import os
 import sys
 from pathlib import Path
+import yaml
+from datasets import load_dataset
 
 # Add the parent directory to the path to import the transformer package
 sys.path.append(str(Path(__file__).parent.parent))
@@ -18,8 +20,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from transformer import Transformer, Config, Trainer, TextDataset, Tokenizer
-from transformer.data import create_data_loaders
+from transformer import Transformer, Trainer, TextDataset, Tokenizer
+from transformer.config import Config
+from transformer.data import create_data_loaders, HuggingFaceTextDataset
 
 
 def create_sample_data(data_dir: str, num_samples: int = 1000):
@@ -97,7 +100,7 @@ def main():
         "--data-dir", 
         type=str, 
         default="data",
-        help="Directory containing training data"
+        help="Directory containing training data (for local files)"
     )
     parser.add_argument(
         "--create-sample-data", 
@@ -121,6 +124,18 @@ def main():
         type=str, 
         default="auto",
         help="Device to use (auto, cpu, cuda)"
+    )
+    parser.add_argument(
+        "--dataset_name",
+        type=str,
+        default=None,
+        help="Name of the dataset from the Hugging Face Hub (e.g., 'wikitext')"
+    )
+    parser.add_argument(
+        "--dataset_config",
+        type=str,
+        default=None,
+        help="Optional dataset configuration for Hugging Face datasets (e.g., 'wikitext-103-raw-v1')"
     )
     
     args = parser.parse_args()
@@ -164,46 +179,50 @@ def main():
         bos_token=config.data.bos_token,
         eos_token=config.data.eos_token
     )
+
+    hf_dataset = None
+    if args.dataset_name:
+        print(f"Loading Hugging Face dataset: {args.dataset_name}")
+        if args.dataset_config:
+            hf_dataset = load_dataset(args.dataset_name, args.dataset_config)
+        else:
+            hf_dataset = load_dataset(args.dataset_name)
+        
+        # Train tokenizer on the Hugging Face dataset
+        def text_iterator():
+            for example in hf_dataset["train"]:
+                yield example["text"]
+        tokenizer.train_from_iterator(text_iterator())
+        
+        # Save the tokenizer
+        os.makedirs("checkpoints", exist_ok=True)
+        tokenizer_path = f"checkpoints/{Path(args.config).stem}_tokenizer.pkl"
+        tokenizer.save(tokenizer_path)
+        print(f"Tokenizer saved to {tokenizer_path}")
+    else:
+        # Train tokenizer on local data if no HF dataset is specified
+        train_texts = []
+        train_data_path = Path(config.data.train_data_path)
+        if train_data_path.is_file():
+            with open(train_data_path, 'r', encoding='utf-8') as f:
+                train_texts.extend(f.readlines())
+        elif train_data_path.is_dir():
+            for file_path in train_data_path.glob('*.txt'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    train_texts.extend(f.readlines())
+        train_texts = [text.strip() for text in train_texts if text.strip()]
+        if train_texts:
+            tokenizer.train(train_texts)
+        else:
+            print("Warning: No local training data found for tokenizer training.")
     
-    # Create datasets
-    train_dataset = TextDataset(
-        config.data.train_data_path,
-        config.data,
-        tokenizer=tokenizer,
-        split="train"
-    )
-    
-    val_dataset = TextDataset(
-        config.data.val_data_path,
-        config.data,
-        tokenizer=tokenizer,
-        split="val"
-    )
-    
-    print(f"Training dataset size: {len(train_dataset)}")
-    print(f"Validation dataset size: {len(val_dataset)}")
     print(f"Vocabulary size: {tokenizer.vocab_size}")
     
     # Create data loaders
-    from transformer.data import collate_fn
+    train_loader, val_loader, _ = create_data_loaders(config.data, tokenizer, hf_dataset=hf_dataset)
     
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.data.batch_size,
-        shuffle=config.data.shuffle,
-        num_workers=config.data.num_workers,
-        pin_memory=config.data.pin_memory,
-        collate_fn=lambda batch: collate_fn(batch, tokenizer.pad_token_id)
-    )
-    
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config.data.batch_size,
-        shuffle=False,
-        num_workers=config.data.num_workers,
-        pin_memory=config.data.pin_memory,
-        collate_fn=lambda batch: collate_fn(batch, tokenizer.pad_token_id)
-    )
+    print(f"Training dataset size: {len(train_loader.dataset)}")
+    print(f"Validation dataset size: {len(val_loader.dataset)}")
     
     # Create model
     model = Transformer(config.model)

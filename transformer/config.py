@@ -214,6 +214,27 @@ class Config:
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "Config":
         """Create configuration from a dictionary."""
+        # Convert string values to appropriate types
+        def convert_values(d: Dict[str, Any]) -> Dict[str, Any]:
+            converted = {}
+            for key, value in d.items():
+                if isinstance(value, str):
+                    # Handle scientific notation
+                    if 'e' in value.lower() and value.lower().replace('e', '').replace('-', '').replace('.', '').replace('+', '').isdigit():
+                        try:
+                            converted[key] = float(value)
+                        except ValueError:
+                            converted[key] = value
+                    else:
+                        converted[key] = value
+                elif isinstance(value, dict):
+                    converted[key] = convert_values(value)
+                else:
+                    converted[key] = value
+            return converted
+        
+        config_dict = convert_values(config_dict)
+        
         # Extract sub-configurations
         model_config = ModelConfig(**config_dict.get("model", {}))
         training_config = TrainingConfig(**config_dict.get("training", {}))

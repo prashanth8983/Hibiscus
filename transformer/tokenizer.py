@@ -55,6 +55,15 @@ class BaseTokenizer:
             texts: List of training texts
         """
         raise NotImplementedError("Subclasses must implement train method")
+
+    def train_from_iterator(self, text_iterator) -> None:
+        """
+        Train the tokenizer on an iterator of texts.
+        
+        Args:
+            text_iterator: An iterator yielding strings.
+        """
+        raise NotImplementedError("Subclasses must implement train_from_iterator method")
     
     def tokenize(self, text: str) -> List[str]:
         """
@@ -206,6 +215,28 @@ class CharacterTokenizer(BaseTokenizer):
             self.reverse_vocab[i] = char
         
         self.is_trained = True
+
+    def train_from_iterator(self, text_iterator) -> None:
+        """
+        Train character tokenizer from an iterator.
+        
+        Args:
+            text_iterator: An iterator yielding strings.
+        """
+        char_counts = Counter()
+        for text in text_iterator:
+            char_counts.update(text)
+        
+        for token in self.special_tokens:
+            char_counts[token] = 999999
+        
+        vocab_items = char_counts.most_common(self.vocab_size)
+        
+        for i, (char, _) in enumerate(vocab_items):
+            self.vocab[char] = i
+            self.reverse_vocab[i] = char
+        
+        self.is_trained = True
     
     def tokenize(self, text: str) -> List[str]:
         """
@@ -251,9 +282,18 @@ class WordTokenizer(BaseTokenizer):
         Args:
             texts: List of training texts
         """
+        self.train_from_iterator(iter(texts))
+    
+    def train_from_iterator(self, text_iterator) -> None:
+        """
+        Train word tokenizer from an iterator.
+        
+        Args:
+            text_iterator: An iterator yielding strings.
+        """
         # Preprocess and tokenize texts
         word_counts = Counter()
-        for text in texts:
+        for text in text_iterator:
             words = self._preprocess_text(text)
             word_counts.update(words)
         
@@ -348,9 +388,18 @@ class BPETokenizer(BaseTokenizer):
         Args:
             texts: List of training texts
         """
+        self.train_from_iterator(iter(texts))
+
+    def train_from_iterator(self, text_iterator) -> None:
+        """
+        Train BPE tokenizer from an iterator.
+        
+        Args:
+            text_iterator: An iterator yielding strings.
+        """
         # Initialize vocabulary with characters
         char_vocab = set()
-        for text in texts:
+        for text in text_iterator:
             char_vocab.update(text)
         
         # Add special tokens
@@ -362,7 +411,7 @@ class BPETokenizer(BaseTokenizer):
         self.reverse_vocab = {i: char for char, i in self.vocab.items()}
         
         # Count word frequencies
-        for text in texts:
+        for text in text_iterator:
             words = text.split()
             for word in words:
                 self.word_freqs[word] += 1
@@ -480,8 +529,14 @@ class Tokenizer:
             raise ValueError(f"Unknown tokenizer type: {tokenizer_type}")
     
     def train(self, texts: List[str]) -> None:
-        """Train the tokenizer."""
+        """
+        Train the tokenizer."""
         self.tokenizer.train(texts)
+
+    def train_from_iterator(self, text_iterator) -> None:
+        """
+        Train the tokenizer from an iterator."""
+        self.tokenizer.train_from_iterator(text_iterator)
     
     def tokenize(self, text: str) -> List[str]:
         """Tokenize text."""

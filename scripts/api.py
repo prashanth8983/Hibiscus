@@ -89,11 +89,14 @@ def load_model(checkpoint_path: str, config_path: str) -> None:
         vocab_size=config.data.vocab_size
     )
     
-    # Try to load tokenizer from checkpoint directory
-    tokenizer_dir = Path(checkpoint_path).parent / "tokenizer"
-    if tokenizer_dir.exists():
-        tokenizer.load(str(tokenizer_dir))
-        logger.info("Tokenizer loaded from checkpoint directory")
+    # Try to load tokenizer from file (check both improved and sample tokenizers)
+    tokenizer_path = Path(checkpoint_path).parent / "improved_tokenizer.pkl"
+    if not tokenizer_path.exists():
+        tokenizer_path = Path(checkpoint_path).parent / "tokenizer.pkl"
+    
+    if tokenizer_path.exists():
+        tokenizer = Tokenizer.load(str(tokenizer_path))
+        logger.info(f"Tokenizer loaded from {tokenizer_path}")
     else:
         logger.warning("Tokenizer not found, using default tokenizer")
     
@@ -171,8 +174,22 @@ def generate_text():
         if top_p is not None and (top_p <= 0 or top_p > 1.0):
             return jsonify({'error': 'top_p must be between 0 and 1.0'}), 400
         
-        # Tokenize prompt
+        # Tokenize prompt and handle context length limits
         prompt_ids = tokenizer.encode(prompt)
+        
+        # Check if prompt exceeds model's max sequence length
+        max_seq_len = config.model.max_seq_len if config else 128
+        if len(prompt_ids) >= max_seq_len:
+            # Truncate prompt to fit within model limits
+            prompt_ids = prompt_ids[:max_seq_len - 1]  # Leave room for generation
+            logger.warning(f"Prompt truncated from {len(tokenizer.encode(prompt))} to {len(prompt_ids)} tokens")
+        
+        # Ensure top_k doesn't exceed vocabulary size
+        vocab_size = tokenizer.vocab_size if hasattr(tokenizer, 'vocab_size') else 1000
+        if top_k is not None and top_k > vocab_size:
+            top_k = vocab_size
+            logger.warning(f"top_k reduced from {data.get('top_k')} to {vocab_size} (vocabulary size)")
+        
         prompt_tensor = torch.tensor([prompt_ids], device=device)
         
         # Generate text
