@@ -1,0 +1,21 @@
+data:
+  tokenizer_type: word
+  vocab_size: 1000
+model:
+  d_ff: 512
+  d_model: 128
+  dropout: 0.1
+  max_seq_len: 128
+  n_heads: 4
+  n_layers: 2
+  vocab_size: 1000
+training:
+  batch_size: 8
+  gradient_clip_val: 1.0
+  learning_rate: 0.0001
+  max_epochs: 10
+  optimizer: adam
+  use_amp: false
+  use_ddp: false
+  warmup_steps: 100
+  weight_decay: 0.01
