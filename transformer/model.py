@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Tuple, Dict, Any, Union
 
-from .attention import MultiHeadAttention, SelfAttention, CrossAttention
+from .attention import MultiHeadAttention, CrossAttention
 from .positional_encoding import PositionalEncoding
 from .config import ModelConfig
 
@@ -142,16 +142,6 @@ class TransformerBlock(nn.Module):
             return x
 
 
-class EncoderBlock(TransformerBlock):
-    """
-    Encoder block for the transformer encoder.
-    
-    This is identical to the basic transformer block but specifically
-    designed for the encoder part of the transformer.
-    """
-    pass
-
-
 class DecoderBlock(nn.Module):
     """
     Decoder block with self-attention, cross-attention, and feed-forward network.
@@ -262,7 +252,7 @@ class TransformerEncoder(nn.Module):
         
         # Create encoder blocks
         self.layers = nn.ModuleList([
-            EncoderBlock(
+            TransformerBlock(
                 d_model=config.d_model,
                 n_heads=config.n_heads,
                 d_ff=config.d_ff,
@@ -444,7 +434,7 @@ class Transformer(nn.Module):
         src_emb = self.token_embedding(src) * math.sqrt(self.config.d_model)
         
         # Add positional encoding
-        src_emb = self.pos_encoding(src_emb.transpose(0, 1)).transpose(0, 1)
+        src_emb = self.pos_encoding(src_emb)
         
         # Pass through encoder
         return self.encoder(src_emb, src_mask, return_attention)
@@ -470,7 +460,7 @@ class Transformer(nn.Module):
         tgt_emb = self.token_embedding(tgt) * math.sqrt(self.config.d_model)
         
         # Add positional encoding
-        tgt_emb = self.pos_encoding(tgt_emb.transpose(0, 1)).transpose(0, 1)
+        tgt_emb = self.pos_encoding(tgt_emb)
         
         # Pass through decoder
         return self.decoder(tgt_emb, encoder_output, tgt_mask, src_mask, return_attention)
@@ -557,7 +547,8 @@ class Transformer(nn.Module):
                 tgt_mask = self._create_causal_mask(tgt.size(1), device)
                 
                 # Get predictions
-                logits = self.decode(tgt, encoder_output, tgt_mask, src_mask, return_attention=False)
+                decoder_output = self.decode(tgt, encoder_output, tgt_mask, src_mask, return_attention=False)
+                logits = self.output_projection(decoder_output)
                 next_token_logits = logits[:, -1, :] / temperature
                 
                 # Apply top-k and top-p filtering
