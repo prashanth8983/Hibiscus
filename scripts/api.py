@@ -161,8 +161,8 @@ def generate_text():
         temperature = data.get('temperature', 0.8)
         top_k = data.get('top_k', 50)
         top_p = data.get('top_p', 0.9)
-        pad_token_id = data.get('pad_token_id', 0)
-        eos_token_id = data.get('eos_token_id', 1)
+        pad_token_id = tokenizer.pad_token_id
+        eos_token_id = tokenizer.eos_token_id
         
         # Validate parameters
         if max_length <= 0 or max_length > 1000:

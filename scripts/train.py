@@ -162,12 +162,17 @@ def main():
         return
     
     config = Config.from_yaml(config_path)
+    config.ensure_dirs()
     print(f"Loaded configuration from {config_path}")
     
-    # Set random seed
+    # Set random seed for reproducibility
+    import numpy as np
+    import random
+    random.seed(config.seed)
+    np.random.seed(config.seed)
     torch.manual_seed(config.seed)
     if torch.cuda.is_available():
-        torch.cuda.manual_seed(config.seed)
+        torch.cuda.manual_seed_all(config.seed)
     
     # Create tokenizer
     tokenizer = Tokenizer(
