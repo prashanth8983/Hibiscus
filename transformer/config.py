@@ -214,25 +214,21 @@ class Config:
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "Config":
         """Create configuration from a dictionary."""
-        # Convert string values to appropriate types
+        # Convert string values that look numeric to proper types
         def convert_values(d: Dict[str, Any]) -> Dict[str, Any]:
             converted = {}
             for key, value in d.items():
-                if isinstance(value, str):
-                    # Handle scientific notation
-                    if 'e' in value.lower() and value.lower().replace('e', '').replace('-', '').replace('.', '').replace('+', '').isdigit():
-                        try:
-                            converted[key] = float(value)
-                        except ValueError:
-                            converted[key] = value
-                    else:
-                        converted[key] = value
-                elif isinstance(value, dict):
+                if isinstance(value, dict):
                     converted[key] = convert_values(value)
+                elif isinstance(value, str):
+                    try:
+                        converted[key] = float(value)
+                    except (ValueError, TypeError):
+                        converted[key] = value
                 else:
                     converted[key] = value
             return converted
-        
+
         config_dict = convert_values(config_dict)
         
         # Extract sub-configurations
@@ -276,8 +272,8 @@ class Config:
         with open(config_path, 'w') as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, indent=2)
     
-    def __post_init__(self):
-        """Create necessary directories."""
+    def ensure_dirs(self):
+        """Create necessary directories for logging and checkpoints."""
         Path(self.log_dir).mkdir(parents=True, exist_ok=True)
         Path(self.checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
