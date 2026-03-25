@@ -107,8 +107,7 @@ class MultiHeadAttention(nn.Module):
             raise ValueError(f"Unknown attention type: {attention_type}")
         
         self.dropout = nn.Dropout(dropout)
-        self.layer_norm = nn.LayerNorm(d_model)
-        
+
         # Initialize weights
         self._init_weights()
     
@@ -236,60 +235,6 @@ class CrossAttention(MultiHeadAttention):
         return super().forward(query, key_value, key_value, mask, return_attention)
 
 
-class AttentionWithResidual(nn.Module):
-    """
-    Attention mechanism with residual connection and layer normalization.
-    
-    This is the standard attention block used in transformer layers.
-    """
-    
-    def __init__(self, d_model: int, n_heads: int, dropout: float = 0.1,
-                 attention_type: str = "scaled_dot_product"):
-        """
-        Initialize attention with residual connection.
-        
-        Args:
-            d_model: Dimension of the model
-            n_heads: Number of attention heads
-            dropout: Dropout probability
-            attention_type: Type of attention mechanism
-        """
-        super().__init__()
-        
-        self.attention = MultiHeadAttention(d_model, n_heads, dropout, attention_type=attention_type)
-        self.layer_norm = nn.LayerNorm(d_model)
-        self.dropout = nn.Dropout(dropout)
-    
-    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None,
-                return_attention: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        """
-        Forward pass with residual connection.
-        
-        Args:
-            x: Input tensor
-            mask: Optional mask tensor
-            return_attention: Whether to return attention weights
-            
-        Returns:
-            Output tensor or tuple of (output, attention_weights)
-        """
-        residual = x
-        
-        # Apply attention
-        if return_attention:
-            attn_output, attention_weights = self.attention(x, x, x, mask, return_attention=True)
-        else:
-            attn_output = self.attention(x, x, x, mask, return_attention=False)
-        
-        # Add residual connection and apply layer norm
-        output = self.layer_norm(residual + self.dropout(attn_output))
-        
-        if return_attention:
-            return output, attention_weights
-        else:
-            return output
-
-
 def create_attention_mask(seq_len: int, device: torch.device, 
                          causal: bool = True) -> torch.Tensor:
     """
@@ -328,12 +273,12 @@ def create_padding_mask(padding_mask: torch.Tensor,
         Combined attention mask
     """
     # Create padding mask for attention
-    seq_len = padding_mask.size(-1)
-    pad_mask = padding_mask.unsqueeze(1).unsqueeze(2)  # (batch_size, 1, 1, seq_len)
-    pad_mask = pad_mask.expand(-1, -1, seq_len, -1)    # (batch_size, 1, seq_len, seq_len)
-    
+    # Mask should be 0 when either query or key position is padding
+    key_mask = padding_mask.unsqueeze(1).unsqueeze(2)    # (batch, 1, 1, seq_len)
+    query_mask = padding_mask.unsqueeze(1).unsqueeze(3)  # (batch, 1, seq_len, 1)
+    pad_mask = key_mask * query_mask  # (batch, 1, seq_len, seq_len)
+
     if attention_mask is not None:
-        # Combine with existing attention mask
-        return attention_mask + pad_mask
+        return attention_mask * pad_mask
     else:
         return pad_mask 

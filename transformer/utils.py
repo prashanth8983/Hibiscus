@@ -86,14 +86,13 @@ def create_padding_mask(padding_mask: torch.Tensor,
     Returns:
         Combined attention mask
     """
-    # Create padding mask for attention
-    seq_len = padding_mask.size(-1)
-    pad_mask = padding_mask.unsqueeze(1).unsqueeze(2)  # (batch_size, 1, 1, seq_len)
-    pad_mask = pad_mask.expand(-1, -1, seq_len, -1)    # (batch_size, 1, seq_len, seq_len)
-    
+    # Mask should be 0 when either query or key position is padding
+    key_mask = padding_mask.unsqueeze(1).unsqueeze(2)    # (batch, 1, 1, seq_len)
+    query_mask = padding_mask.unsqueeze(1).unsqueeze(3)  # (batch, 1, seq_len, 1)
+    pad_mask = key_mask * query_mask  # (batch, 1, seq_len, seq_len)
+
     if attention_mask is not None:
-        # Combine with existing attention mask
-        return attention_mask + pad_mask
+        return attention_mask * pad_mask
     else:
         return pad_mask
 
