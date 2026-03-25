@@ -393,25 +393,28 @@ class BPETokenizer(BaseTokenizer):
     def train_from_iterator(self, text_iterator) -> None:
         """
         Train BPE tokenizer from an iterator.
-        
+
         Args:
             text_iterator: An iterator yielding strings.
         """
+        # Collect texts so we can iterate twice (chars + word freqs)
+        texts = list(text_iterator)
+
         # Initialize vocabulary with characters
         char_vocab = set()
-        for text in text_iterator:
+        for text in texts:
             char_vocab.update(text)
-        
+
         # Add special tokens
         for token in self.special_tokens:
             char_vocab.add(token)
-        
+
         # Initialize vocabulary
         self.vocab = {char: i for i, char in enumerate(char_vocab)}
         self.reverse_vocab = {i: char for char, i in self.vocab.items()}
-        
+
         # Count word frequencies
-        for text in text_iterator:
+        for text in texts:
             words = text.split()
             for word in words:
                 self.word_freqs[word] += 1

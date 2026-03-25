@@ -1,14 +1,11 @@
 """
-Professional Production-Grade Transformer Implementation
-
-A comprehensive, production-ready implementation of the Transformer architecture
-with modern best practices, extensive testing, and professional tooling.
+Hibiscus Transformer — A from-scratch Transformer implementation in PyTorch.
 """
 
-from .model import Transformer
-from .config import ModelConfig
+from .model import Transformer, TransformerEncoder, TransformerDecoder
+from .config import ModelConfig, Config
 from .trainer import Trainer
-from .data import TextDataset
+from .data import TextDataset, TranslationDataset
 from .tokenizer import Tokenizer
 
 __version__ = "1.0.0"
@@ -16,8 +13,12 @@ __author__ = "Hibiscus Team"
 
 __all__ = [
     "Transformer",
-    "ModelConfig", 
+    "TransformerEncoder",
+    "TransformerDecoder",
+    "ModelConfig",
+    "Config",
     "Trainer",
     "TextDataset",
-    "Tokenizer"
-] 
+    "TranslationDataset",
+    "Tokenizer",
+]

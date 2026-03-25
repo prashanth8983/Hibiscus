@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 import numpy as np
 from tqdm import tqdm
 import wandb
@@ -122,7 +122,8 @@ class Trainer:
         self.criterion = nn.CrossEntropyLoss(ignore_index=0)  # Ignore padding token
         
         # Initialize mixed precision training
-        self.scaler = GradScaler() if self.train_config.use_amp else None
+        self.amp_device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.scaler = GradScaler(self.amp_device_type) if self.train_config.use_amp else None
         
         # Initialize logging
         self._setup_logging()
@@ -199,7 +200,7 @@ class Trainer:
             
             # Forward pass
             if self.scaler is not None:
-                with autocast():
+                with autocast(self.amp_device_type):
                     if 'src_ids' in batch:
                         # Translation task
                         outputs = self.model(batch['src_ids'], batch['tgt_ids'][:, :-1])
